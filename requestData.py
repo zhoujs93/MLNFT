@@ -7,8 +7,8 @@ import pickle, subprocess
 from collections import defaultdict
 from collections import deque
 # Get an API key pair for free here: https://dashboard.blockchainapi.com/
-MY_API_KEY_ID = "VAG3eU6AZLbTjm9"
-MY_API_SECRET_KEY = "MryAXR7kl3oYEPG"
+MY_API_KEY_ID = ""
+MY_API_SECRET_KEY = ""
 
 BLOCKCHAIN_API_RESOURCE = TheBlockchainAPIResource(
     api_key_id=MY_API_KEY_ID,
