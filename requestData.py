@@ -58,20 +58,6 @@ def get_closed_CM(public_key):
     return transactions
 
 
-def get_hashlist(cm_id, base_dir, is_v2 = True):
-    rpc = 'https://polished-cool-surf.solana-mainnet.quiknode.pro/66bc31e049b46dd293092114e2d8717b3378033f/'
-    t = '180'
-    if is_v2:
-        cmd = ['metaboss', 'snapshot', 'mints', '-c', cm_id, '-r', rpc, '-t', t, '--output', './', '--v2']
-    else:
-        cmd = ['metaboss', 'snapshot', 'mints', '-c', cm_id, '-r', rpc, '-t', t, '--output', './']
-    p = subprocess.run(cmd, cwd=str(base_dir / 'hashlist'))
-    filename = f'{cm_id}_mint_accounts.json'
-    dir_hlist = base_dir / 'hashlist'
-    with open(str(dir_hlist / filename), 'r') as file:
-        hlist = json.load(file)
-    return hlist
-
 if __name__ == '__main__':
     # load all candy machines
     load = False
