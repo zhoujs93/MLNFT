@@ -1,7 +1,10 @@
 import pathlib
-from theblockchainapi import TheBlockchainAPIResource, SolanaNetwork, SolanaCandyMachineContractVersion
+import pprint
+from theblockchainapi import TheBlockchainAPIResource, \
+    SolanaNetwork, SolanaCandyMachineContractVersion, SearchMethod
 import time, json, requests
 import pickle, subprocess
+from collections import defaultdict
 from collections import deque
 # Get an API key pair for free here: https://dashboard.blockchainapi.com/
 MY_API_KEY_ID = "VAG3eU6AZLbTjm9"
@@ -45,7 +48,6 @@ def get_nft_analytics(mint_addresses, start_time = -1, end_time = -1):
     return analytics
 
 def get_closed_CM(public_key):
-    # public_key = '2VxSwAFYDx82gbKZTXsa5dieg3V9ZxbcZtnrUuv8WJ6g'
     print(f"Transactions for {public_key}")
     transactions = BLOCKCHAIN_API_RESOURCE.get_wallet_transactions(
         public_key,
@@ -86,51 +88,49 @@ if __name__ == '__main__':
                 pickle.dump(result, file)
 
     # try to retrieve the hashlist of every nft
-    cm_v2 = result['config_addresses_v2']
-    cm_to_hashlist = {}
-    errors = {}
-    cm_v2_test = cm_v2[:100]
-    # for cmid in cm_v2_test:
-    #     try:
-    #         result = BLOCKCHAIN_API_RESOURCE.get_all_nfts_from_candy_machine(
-    #             candy_machine_id=cmid,
-    #             network=SolanaNetwork.MAINNET_BETA
-    #         )
-    #         cm_to_hashlist[cmid] = result
-    #     except Exception as e:
-    #         print(f'{e}')
-    #         errors[cmid] = e
+    cm_v2 = ['Taiyo Robotics', 'Mindfolk', 'Boryoku Dragonz', 'Degods', 'Famous Fox',
+             'Portals', 'Lfinity Flames', 'Catalina', 'Degen Ape Academy',
+             'Aurory', 'Galactic Geckos', 'Nyan Heroes', 'Stoned Ape Club']
+    results = []
+    index = 0
+    try:
+        while True:
+            result = requests.get(url = f'https://api-mainnet.magiceden.dev/v2/collections?offset={index}&limit=500')
+            result = result.json()
+            pprint.pprint(result[-1])
+            index += 500
+            results += result
+            print(f'len of results is {len(results)}')
+    except Exception as e:
+        print(f'{index} : {e}')
 
+    data = {}
+    for collection in results:
+        name = collection['name']
+        data[name] = collection
 
+    sample = {}
+    for k, v in data.items():
+        for name in cm_v2:
+            if name in k:
+                sample[name] = v
 
-    # hodl_whales in result['config_addresses_v2']
-    # all_nfts = get_cm_nft(hodl_whales, verbose = False, v2 = True)
-    # all_nft_info, minted_nfts, unminted_nfts = all_nfts['all_nfts'], all_nfts['minted_nfts'], all_nfts['unminted_nfts']
-    # addresses = []
-    # for metadata in minted_nfts:
-    #     mint_account = metadata['nft_metadata']['mint']
-    #     addresses.append(mint_account)
+    tx_data = defaultdict(list)
+    for k, v in sample.items():
+        symbol = v['symbol']
+        print(f'Moving to {symbol}')
+        try:
+            index = 0
+            results = []
+            while True:
+                if index % 100 == 0:
+                    print(f'{symbol} : {index}')
+                time.sleep(5)
+                result = requests.get(url = f'https://api-mainnet.magiceden.dev/v2/collections/{symbol}/'
+                                            f'listings?offset={index}&limit=100')
+                result = result.json()
+                tx_data[symbol] += result
+                index += 100
+        except Exception as e:
+            print(f'{index} : {e}')
 
-    # analytics = get_nft_analytics(addresses)
-    # test = 'F7UWhEUnvbD67Lj5DrYyMvtRFC5XETHeJvRycydDJsu7'
-    # test_nft_tx = analytics['transaction_history'][test]
-    # data = {k: v for k, v in analytics['transaction_history'].items() if len(v) != 0}
-    # data_dir = pathlib.Path.cwd() / 'data' / 'HODL_data.json'
-    # with open(str(data_dir), 'w') as file:
-    #     json.dump(data, file)
-
-
-    # get unsigned tx
-    # hodl_whales = '2VxSwAFYDx82gbKZTXsa5dieg3V9ZxbcZtnrUuv8WJ6g'
-    # transactions = get_closed_CM(hodl_whales)
-    # tx_details = []
-    # for transaction in transactions[:5]:
-    #     transaction = BLOCKCHAIN_API_RESOURCE.get_solana_transaction(
-    #         tx_signature=transaction,
-    #         network=SolanaNetwork.MAINNET_BETA
-    #     )
-    #     print(transaction)
-    #     tx_details.append(transaction)
-    # direct = pathlib.Path.cwd() / 'data' / 'test_tx.json'
-    # with open(direct, 'w') as file:
-    #     json.dump(tx_details, file)
