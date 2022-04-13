@@ -2,10 +2,13 @@ import pathlib
 import pprint
 from theblockchainapi import TheBlockchainAPIResource, \
     SolanaNetwork, SolanaCandyMachineContractVersion, SearchMethod
+from solana.rpc.api import Client
 import time, json, requests
 import pickle, subprocess
 from collections import defaultdict
 from collections import deque
+import pandas as pd
+import matplotlib.pyplot as plt
 # Get an API key pair for free here: https://dashboard.blockchainapi.com/
 MY_API_KEY_ID = "VAG3eU6AZLbTjm9"
 MY_API_SECRET_KEY = "MryAXR7kl3oYEPG"
@@ -33,18 +36,12 @@ def get_all_candy_machines():
     return result
 
 def get_nft_analytics(mint_addresses, start_time = -1, end_time = -1):
-
-    start_time = None  # Default start time is 1 day ago. Provide -1 to get full history (since we began recording it).
-    end_time = None
     print(f"Retrieved {len(mint_addresses)} mint addresses.")
     analytics = BLOCKCHAIN_API_RESOURCE.get_nft_marketplace_analytics(
         mint_addresses=mint_addresses,
         start_time=start_time,
         end_time=end_time
     )
-    print(f"NFT Transactions: {json.dumps(analytics, indent=4)}")
-    print(f"Floor = {analytics['floor']}")
-    print(f"Volume = {analytics['volume']}")
     return analytics
 
 def get_closed_CM(public_key):
@@ -89,10 +86,11 @@ if __name__ == '__main__':
 
     # try to retrieve the hashlist of every nft
     me_data = {}
-    cm_v2 = ['Taiyo Robotics', 'Mindfolk', 'Boryoku Dragonz', 'Degods', 'Famous Fox',
-             'Portals', 'Lfinity Flames', 'Catalina', 'Degen Ape Academy',
-             'Aurory', 'Galactic Geckos', 'Nyan Heroes', 'Stoned Ape Club',
-             'Male HODL Whales']
+    cm_v2 = ['Taiyo Robotics', 'Mindfolk', 'Boryoku Dragonz', 'Degods',
+             'Portals', 'Catalina', 'Degenerate Ape Academy',
+             'Aurory', 'Galactic Geckos', 'Nyan Heroes', 'Stoned Ape Crew',
+             'Male HODL Whales', 'Cets On Creck', 'Solana Monkey Business', 'Zaysan Raptors',
+             'Degenerate Trash Pandas', 'Dazed']
     results = []
     index = 0
     try:
@@ -115,9 +113,12 @@ if __name__ == '__main__':
 
     sample = {}
     for k, v in data.items():
+        proc_name = k.replace(' ', '').lower()
         for name in cm_v2:
-            if name in k:
-                sample[name] = v
+            proc_key = name.replace(' ', '').lower()
+            if proc_key in proc_name:
+                sample[k] = v
+
 
     listings = defaultdict(list)
     index = 0
@@ -132,7 +133,7 @@ if __name__ == '__main__':
     me_data['test_listings_data'] = listings
 
     whales = listings['solana_hodl_whales']
-    pprint.pprint(whales[0])
+
     hashmap_cmid = {}
     errors = set()
     for k, v in listings.items():
@@ -150,7 +151,7 @@ if __name__ == '__main__':
                     errors.add(k)
             else:
                 break
-    # add test data
+    # # add test data
     me_data['sample_cm_id'] = hashmap_cmid
     cmid_to_hashlist = {}
     # get hashlist of CMID
@@ -160,4 +161,79 @@ if __name__ == '__main__':
         hashlist = get_hashlist(cm_id, base_dir, is_v2 = is_v2)
         cmid_to_hashlist[key] = hashlist
 
-    
+    me_data['sample_cmid_to_hashlist'] = cmid_to_hashlist
+    transaction_errors = defaultdict(list)
+    transaction_data = {}
+    for k, v in cmid_to_hashlist.items():
+        print(f'Processing {k}')
+        temp_tx = {}
+        for i in range(0, len(v), 250):
+            try:
+                hlist = v[i : i + 250]
+                tx_data = get_nft_analytics(hlist, -1, None)
+                temp_tx.update(tx_data['transaction_history'])
+            except Exception as e:
+                print(f'Error for {k} on ({i}, {i+250}) : {e}')
+                transaction_errors[k] += hlist
+        transaction_data[k] = temp_tx
+
+    me_data['sample_transaction_data'] = transaction_data
+    with open(str(data_directory / 'sample_data.pickle'), 'wb') as file:
+        pickle.dump(me_data, file)
+
+    transaction_data = me_data['sample_transaction_data']
+    all_dfs = {}
+    for name, val in transaction_data.items():
+        project_df = {}
+        for k, v in val.items():
+            if len(v) != 0:
+                project_df[k] = pd.DataFrame(v)
+        project_df = pd.concat(list(project_df.values()), axis = 0, ignore_index = True)
+        all_dfs[name] = project_df
+
+    for k, v in all_dfs.items():
+        v['project_name'] = k
+        all_dfs[k] = v
+    dfs = pd.concat(list(all_dfs.values()), axis = 0, ignore_index = True)
+    dfs['datetime'] = pd.to_datetime(dfs['block_time'], unit = 's')
+    sample = dfs.loc[dfs['project_name'] == 'degods', :]
+    buy_df = sample.loc[sample['operation'] == 'buy']
+    buy_df['price'] = buy_df['price'] / 10**9
+    avg_price = buy_df.resample('D', on = 'datetime').mean()
+    ax = avg_price['price'].plot(y = 'price', figsize = (12, 12), title = 'average price per day')
+    plt.show()
+
+    http_client = Client("https://broken-sparkling-frog.solana-mainnet.quiknode.pro/cd7cc881807e0e218614e5f86ea1f62b9aa1fc8e/")
+    one_transaction_set = http_client.get_confirmed_signature_for_address2('6RiLfUjMZsysLWCM5r2uhnrzFyQmTev1aHcJLBTVy7ss')
+    one_transaction = http_client.get_confirmed_transaction('4kgeHWWTRKtJyfRNETtzaqfgmaDVYLkXmiyCWtTWQAnYXsauPoVEghfGeSmBSai6rJdAkZjWQafJctp7Amwk3qmQ')
+    # one_transaction_tr = http_client.get_confirmed_signature_for_address2('MEisE1HzehtrDpAAT8PnLHjpSSkRYakotTuJRPjTpo8')
+    tx_signature = []
+    me_transactions = {}
+    index = 0
+    min_date = pd.to_datetime('2021-12-01')
+    cur_min_date = pd.to_datetime('2021-12-30')
+    try:
+        last_tx = 'kxsDBjRtvudXUPmXcAoUnG8WsgQv5Z89Q2n6kQo5cu9ksPs14S21JUyiotyLLiBPNjvnncRPCkz1jcSQLKQHCvB'
+        while True:
+            if index % 10 == 0:
+                print(f'Index = {1000 * index}')
+            program_acc = http_client.get_confirmed_signature_for_address2(
+                account = 'MEisE1HzehtrDpAAT8PnLHjpSSkRYakotTuJRPjTpo8',
+                before= last_tx
+            )
+            last_tx = program_acc['result'][-1]['signature']
+            for result in program_acc['result']:
+                tx_signature.append(result)
+                tx_sig = result['signature']
+                me_transactions[tx_sig] = result
+                blocktime = pd.to_datetime(result['blockTime'], unit = 's')
+                cur_min_date = min(cur_min_date, blocktime)
+            if cur_min_date <= min_date:
+                break
+            index += 1
+    except Exception as e:
+        print(f'Exception received: {e}')
+
+
+
+
