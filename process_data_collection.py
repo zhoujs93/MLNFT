@@ -65,22 +65,10 @@ def get_howrare_collection(url):
 
 if __name__ == '__main__':
     data_dir = pathlib.Path.cwd() / 'data'
-    files = {
-        'aurory' : 'aurory.pickle', 'cets_on_creck' : 'cets_on_creck.pickle',
-        'degods' : 'degods.pickle', 'galactic_geckos' : 'galactic_geckos.pickle',
-        'female_hodl_whales' : 'female_hodl_whales.pickle', 'taiyo_robotics' : 'taiyo_robotics.pickle',
-        'stoned_ape_crew' : 'stoned_ape_crew.pickle', 'the_catalina_whale_mixer' : 'the_catalina_whale_mixer.pickle'
-    }
-    dfs = []
-    for k, v in files.items():
-        df = get_collection_data(data_dir, v, k)
-        dfs.append(df)
 
-    df_all = pd.concat(dfs, axis = 0, ignore_index = True)
-
-    mappings = ['aurory', 'cets_on_creck', 'ggsg:_galactic_geckos', 'catalina_whale_mixer',
-                'taiyo_robotics', 'female_hodl_whales', 'degods', 'stoned_ape_crew']
-
+    # mappings = ['aurory', 'cets_on_creck', 'ggsg:_galactic_geckos', 'catalina_whale_mixer',
+    #             'taiyo_robotics', 'female_hodl_whales', 'degods', 'stoned_ape_crew']
+    mappings = ['solana_hodl_whales']
     howrare_df = pd.read_excel(str(data_dir / 'howrare_data.xlsx'))
     howrare_data = howrare_df.loc[howrare_df['name'].isin(mappings)]
     howrare_data['url'] = howrare_data['url'].apply(lambda x: x.replace('/', ''))
@@ -90,59 +78,3 @@ if __name__ == '__main__':
         rarity_df = get_howrare_collection(url)
         howrare_dfs.append(rarity_df)
     howrare_df = pd.concat(howrare_dfs, axis = 0)
-
-    df_merged = df_all.merge(howrare_df, how = 'left', left_on = 'mint', right_on = 'mint')
-    df_merged = df_merged.sort_values(by = 'datetime', ignore_index = True)
-    df_merged['last_price'] = df_merged.groupby(['mint'])['total_amount'].apply(lambda x: x.shift(1))
-    df_merged['price_change'] = df_merged.groupby(['mint'])['total_amount'].apply(lambda x: x.pct_change(1) - 1)
-    df_merged['target'] = df_merged.groupby(['mint'])['price_change'].apply(lambda x: x.shift(-1))
-
-    features = ['collection_symbol', 'mint', 'total_amount', 'seller_address', 'buyer_address',
-                'datetime', 'rank', 'howrare.is', 'trait_normalized', 'statistical_rarity',
-                'price_change', 'last_price', 'target']
-    df = df_merged[features]
-    df = df.assign(year = lambda x: x['datetime'].dt.year, month = lambda x: x['datetime'].dt.month,
-                   week = lambda x: x['datetime'].dt.week)
-    df_filtered = df.copy()
-    # TODO: explore other options
-    # df_filtered[['last_price', 'price_change']] = df_filtered[['last_price', 'price_change']].fillna(0.0)
-    df_filtered['total_weekly_volume'] = df_filtered.groupby(['week', 'mint'])['last_price'].transform(lambda x: x.sum())
-    df_filtered['total_monthly_volume'] = df_filtered.groupby(['month', 'mint'])['last_price'].transform(lambda x: x.sum())
-    # filter outliers
-    change = 0.85
-    # get daily calculations
-    projects = df_filtered['collection_symbol'].unique()
-    ts_dir = pathlib.Path.cwd() / 'data' / 'ts-data'
-    for test in projects:
-        print(test)
-        try:
-            sample = df_filtered.loc[df_filtered['collection_symbol'] == test]
-            sample = sample.loc[(sample['price_change'].abs() <= change), :].reset_index(drop = True)
-            daily_df = sample.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].mean())
-            med_df = (sample.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].median()))
-            floor_df = (sample.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].min()))
-            volume_df = (sample.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].sum()))
-            count_df = (sample.resample('D', on = 'datetime').apply(lambda x: x.count()))
-            daily_df = pd.concat([daily_df, med_df, floor_df], axis = 1).fillna(method = 'ffill')
-            daily_df.columns = ['Avg Price', 'Median Price', 'Floor Price']
-            ax = daily_df.plot(y = ['Avg Price', 'Median Price', 'Floor Price'],
-                               figsize = (12, 12), title = f'{test} Price Plots')
-            plot_dir = pathlib.Path.cwd() / 'plots'
-            plt.savefig(str(plot_dir / f'{test}.jpeg'))
-            plt.show()
-            daily_df.to_csv(str(ts_dir / f'{test}.csv'))
-
-        except Exception as e:
-            print(e)
-
-
-    # min_dates = df_all.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].min())
-    # min_dates = min_dates.reset_index(drop = False).rename({0 : 'floor_price'}, axis = 1)
-    # min_dates['pct_change'] = min_dates['floor_price'].pct_change(1)
-    # outlier_pct = 0.85
-    # idx = (min_dates['pct_change'].abs() <= outlier_pct)
-    # min_dates = min_dates.loc[(min_dates['pct_change'].abs() <= outlier_pct), :].reset_index(drop = True)
-    # min_dates['floor_price'] = min_dates['floor_price'].fillna(method = 'backfill')
-    # ax = min_dates.plot(x = 'datetime', y = 'floor_price', figsize = (12, 12))
-    # plt.show()
-

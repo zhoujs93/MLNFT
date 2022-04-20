@@ -83,15 +83,16 @@ if __name__ == '__main__':
     with open(str(data_dir / 'sample_data.pickle'), 'rb') as file:
         cm_data = pickle.load(file)
 
-    mappings = ['aurory', 'cets_on_creck', 'ggsg:_galactic_geckos', 'catalina_whale_mixer',
-                'taiyo_robotics', 'female_hodl_whales', 'degods', 'stoned_ape_crew']
+    # mappings = ['aurory', 'cets_on_creck', 'ggsg:_galactic_geckos', 'catalina_whale_mixer',
+    #             'taiyo_robotics', 'female_hodl_whales', 'degods', 'stoned_ape_crew']
+    mappings = ['solana_hodl_whales']
 
     howrare = pd.read_pickle(str(data_dir / 'howrare_df.pickle'))
     howrare['project_name'] = howrare['link'].apply(lambda x: x.split('/')[-2])
     projects = howrare['project_name'].unique()
-    # sample = '6CCprsgJT4nxBMSitGathXcLshDTL3BE4LcJXvSFwoe2'
-    # url = f'https://api-mainnet.magiceden.dev/rpc/getGlobalActivitiesByQuery?q=%7B%22$match%22:%7B%22mint%22:%22{sample}%22%7D,%22$sort%22:%7B%22blockTime%22:-1,%22createdAt%22:-1%7D,%22$skip%22:0%7D'
-    # request = requests.get(url)
+    sample = '6CCprsgJT4nxBMSitGathXcLshDTL3BE4LcJXvSFwoe2'
+    url = f'https://api-mainnet.magiceden.dev/rpc/getGlobalActivitiesByQuery?q=%7B%22$match%22:%7B%22mint%22:%22{sample}%22%7D,%22$sort%22:%7B%22blockTime%22:-1,%22createdAt%22:-1%7D,%22$skip%22:0%7D'
+    request = requests.get(url)
     hashmap, i = {}, 0
     for project in projects:
         print(f'Moving onto {project}')
@@ -145,28 +146,21 @@ if __name__ == '__main__':
         'delists' : df_delists,
         'other' : df_other
     }
-    with open(str(data_dir / 'dfs_data.pickle'), 'wb') as file:
+    with open(str(data_dir / 'hodl_whales_data.pickle'), 'wb') as file:
         pickle.dump(all_dfs, file)
 
-
-
-    degods_data = {
-        'sales' : sales,
-        'listings' : listings,
-        'delists' : unlistings,
-        'other' : othertx
-    }
+    #
     # with open(str(data_dir / 'degods_final.pickle'), 'wb') as file:
     #     pickle.dump(degods_data, file)
-
+    # #
     # listings have 'parsedList'
     # unlistings have 'parsedUnlist'
     # sales have 'parsedTransactions'
-#
+    #
     #     print(f'Moving on to {project}')
     #     mint_df = howrare.loc[howrare['project_name'] == project]
     #     hashmap = {}
     #     v = mint_df['mint'].unique()
     #     result.append(scrape_project.remote(project, v))
     # result = ray.get(result)
-    # This function should predict classes for new items in the testing data
+    # # This function should predict classes for new items in the testing data

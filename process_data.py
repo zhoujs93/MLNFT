@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
-
+import plotly.graph_objects as go
+import numpy as np
 
 def get_howrare():
     url = 'https://api.howrare.is/v0.1/collections'
@@ -71,27 +72,18 @@ if __name__ == '__main__':
         'female_hodl_whales' : 'female_hodl_whales.pickle', 'taiyo_robotics' : 'taiyo_robotics.pickle',
         'stoned_ape_crew' : 'stoned_ape_crew.pickle', 'the_catalina_whale_mixer' : 'the_catalina_whale_mixer.pickle'
     }
-    dfs = []
-    for k, v in files.items():
-        df = get_collection_data(data_dir, v, k)
-        dfs.append(df)
-
-    df_all = pd.concat(dfs, axis = 0, ignore_index = True)
 
     mappings = ['aurory', 'cets_on_creck', 'ggsg:_galactic_geckos', 'catalina_whale_mixer',
                 'taiyo_robotics', 'female_hodl_whales', 'degods', 'stoned_ape_crew']
 
-    howrare_df = pd.read_excel(str(data_dir / 'howrare_data.xlsx'))
-    howrare_data = howrare_df.loc[howrare_df['name'].isin(mappings)]
-    howrare_data['url'] = howrare_data['url'].apply(lambda x: x.replace('/', ''))
-    urls = howrare_data['url'].tolist()
-    howrare_dfs = []
-    for url in urls:
-        rarity_df = get_howrare_collection(url)
-        howrare_dfs.append(rarity_df)
-    howrare_df = pd.concat(howrare_dfs, axis = 0)
+    howrare = pd.read_pickle(str(data_dir / 'howrare_df.pickle'))
 
-    df_merged = df_all.merge(howrare_df, how = 'left', left_on = 'mint', right_on = 'mint')
+    with open(str(data_dir / 'dfs_data.pickle'), 'rb') as file:
+        all_data = pickle.load(file)
+
+    df_merged = all_data['sales']
+    df_merged['datetime'] = pd.to_datetime(df_merged['blockTime'], unit = 's')
+    df_merged['total_amount'] = df_merged['total_amount'] / (10 ** 9)
     df_merged = df_merged.sort_values(by = 'datetime', ignore_index = True)
     df_merged['last_price'] = df_merged.groupby(['mint'])['total_amount'].apply(lambda x: x.shift(1))
     df_merged['price_change'] = df_merged.groupby(['mint'])['total_amount'].apply(lambda x: x.pct_change(1) - 1)
@@ -99,50 +91,48 @@ if __name__ == '__main__':
 
     features = ['collection_symbol', 'mint', 'total_amount', 'seller_address', 'buyer_address',
                 'datetime', 'rank', 'howrare.is', 'trait_normalized', 'statistical_rarity',
-                'price_change', 'last_price', 'target']
+                'price_change', 'last_price', 'target', 'project']
     df = df_merged[features]
     df = df.assign(year = lambda x: x['datetime'].dt.year, month = lambda x: x['datetime'].dt.month,
                    week = lambda x: x['datetime'].dt.week)
     df_filtered = df.copy()
-    # TODO: explore other options
-    # df_filtered[['last_price', 'price_change']] = df_filtered[['last_price', 'price_change']].fillna(0.0)
+    # # TODO: explore other options
+    # # df_filtered[['last_price', 'price_change']] = df_filtered[['last_price', 'price_change']].fillna(0.0)
     df_filtered['total_weekly_volume'] = df_filtered.groupby(['week', 'mint'])['last_price'].transform(lambda x: x.sum())
     df_filtered['total_monthly_volume'] = df_filtered.groupby(['month', 'mint'])['last_price'].transform(lambda x: x.sum())
-    # filter outliers
+    # # filter outliers
     change = 0.85
-    # get daily calculations
+    # # get daily calculations
     projects = df_filtered['collection_symbol'].unique()
     ts_dir = pathlib.Path.cwd() / 'data' / 'ts-data'
-    for test in projects:
-        print(test)
-        try:
-            sample = df_filtered.loc[df_filtered['collection_symbol'] == test]
-            sample = sample.loc[(sample['price_change'].abs() <= change), :].reset_index(drop = True)
-            daily_df = sample.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].mean())
-            med_df = (sample.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].median()))
-            floor_df = (sample.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].min()))
-            volume_df = (sample.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].sum()))
-            count_df = (sample.resample('D', on = 'datetime').apply(lambda x: x.count()))
-            daily_df = pd.concat([daily_df, med_df, floor_df], axis = 1).fillna(method = 'ffill')
-            daily_df.columns = ['Avg Price', 'Median Price', 'Floor Price']
-            ax = daily_df.plot(y = ['Avg Price', 'Median Price', 'Floor Price'],
-                               figsize = (12, 12), title = f'{test} Price Plots')
-            plot_dir = pathlib.Path.cwd() / 'plots'
-            plt.savefig(str(plot_dir / f'{test}.jpeg'))
-            plt.show()
-            daily_df.to_csv(str(ts_dir / f'{test}.csv'))
 
-        except Exception as e:
-            print(e)
+    # df_filtered.to_feather(str(data_dir / 'sales_data.feather'))
+    df_list = pd.concat([all_data['listings'],
+                         all_data['delists']], axis = 0, ignore_index = True)
+    df_list['datetime'] = pd.to_datetime(df_list['blockTime'], unit = 's')
+    # df_list.to_feather(str(data_dir / 'listings_data.feather'))
 
+    daily_delist = (df_list.groupby(['project'])
+                         .resample('D', on = 'datetime')
+                         .apply(lambda x: (x['TxType'] == 'cancelEscrow').sum()))
+    daily_delist = daily_delist.reset_index(drop = False).rename({0 : 'Delists'}, axis = 1)
+    daily_list = (df_list.groupby(['project'])
+                         .resample('D', on = 'datetime')
+                         .apply(lambda x: (x['TxType'] == 'initializeEscrow').sum()))
+    daily_list = (daily_list.reset_index(drop = False)
+                            .rename({0 : 'Listings'}, axis = 1))
 
-    # min_dates = df_all.resample('D', on = 'datetime').apply(lambda x: x['total_amount'].min())
-    # min_dates = min_dates.reset_index(drop = False).rename({0 : 'floor_price'}, axis = 1)
-    # min_dates['pct_change'] = min_dates['floor_price'].pct_change(1)
-    # outlier_pct = 0.85
-    # idx = (min_dates['pct_change'].abs() <= outlier_pct)
-    # min_dates = min_dates.loc[(min_dates['pct_change'].abs() <= outlier_pct), :].reset_index(drop = True)
-    # min_dates['floor_price'] = min_dates['floor_price'].fillna(method = 'backfill')
-    # ax = min_dates.plot(x = 'datetime', y = 'floor_price', figsize = (12, 12))
-    # plt.show()
-
+    # sales = (df_filtered.groupby(['project', 'rank'])
+    #                     .resample('D', on = 'datetime').)
+    temp = df_filtered.loc[(df_filtered['project'] == 'degods')]
+    df_price = temp.groupby(['rank']).resample('W', on='datetime').apply(lambda x: x['total_amount'].mean())
+    df_price = df_price.reset_index(drop = False).rename({0 : 'Avg Price'}, axis = 1)
+    
+    df_list = df_list.assign(week = lambda x: x['datetime'].dt.week)
+    degods_list = df_list.loc[df_list['project'] == 'degods']
+    week_max = degods_list['week'].max()
+    degods_list_last = degods_list.loc[degods_list['week'] == week_max]
+    seller_wallet = degods_list_last['seller_address'].unique().tolist()
+    degods_wallet_path = pathlib.Path.cwd() / 'address_data' / 'degods_wallet.json'
+    with open(str(degods_wallet_path), 'w') as file:
+        json.dump(seller_wallet, file)

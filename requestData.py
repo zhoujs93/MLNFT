@@ -83,157 +83,180 @@ if __name__ == '__main__':
         if save:
             with open(str(data_directory / 'cm_mapping.pickle'), 'wb') as file:
                 pickle.dump(result, file)
+    #
+    # # try to retrieve the hashlist of every nft
+    # me_data = {}
+    # cm_v2 = ['Taiyo Robotics', 'Mindfolk', 'Boryoku Dragonz', 'Degods',
+    #          'Portals', 'Catalina', 'Degenerate Ape Academy',
+    #          'Aurory', 'Galactic Geckos', 'Nyan Heroes', 'Stoned Ape Crew',
+    #          'Male HODL Whales', 'Cets On Creck', 'Solana Monkey Business', 'Zaysan Raptors',
+    #          'Degenerate Trash Pandas', 'Dazed']
+    # results = []
+    # index = 0
+    # try:
+    #     while True:
+    #         result = requests.get(url = f'https://api-mainnet.magiceden.dev/v2/collections?offset={index}&limit=500')
+    #         result = result.json()
+    #         pprint.pprint(result[-1])
+    #         index += 500
+    #         results += result
+    #         print(f'len of results is {len(results)}')
+    # except Exception as e:
+    #     print(f'{index} : {e}')
+    #
+    # data = {}
+    # for collection in results:
+    #     name = collection['name']
+    #     data[name] = collection
+    #
+    # me_data['magiceden_project_data'] = data
+    #
+    # sample = {}
+    # for k, v in data.items():
+    #     proc_name = k.replace(' ', '').lower()
+    #     for name in cm_v2:
+    #         proc_key = name.replace(' ', '').lower()
+    #         if proc_key in proc_name:
+    #             sample[k] = v
 
-    # try to retrieve the hashlist of every nft
-    me_data = {}
-    cm_v2 = ['Taiyo Robotics', 'Mindfolk', 'Boryoku Dragonz', 'Degods',
-             'Portals', 'Catalina', 'Degenerate Ape Academy',
-             'Aurory', 'Galactic Geckos', 'Nyan Heroes', 'Stoned Ape Crew',
-             'Male HODL Whales', 'Cets On Creck', 'Solana Monkey Business', 'Zaysan Raptors',
-             'Degenerate Trash Pandas', 'Dazed']
-    results = []
-    index = 0
-    try:
-        while True:
-            result = requests.get(url = f'https://api-mainnet.magiceden.dev/v2/collections?offset={index}&limit=500')
-            result = result.json()
-            pprint.pprint(result[-1])
-            index += 500
-            results += result
-            print(f'len of results is {len(results)}')
-    except Exception as e:
-        print(f'{index} : {e}')
-
-    data = {}
-    for collection in results:
-        name = collection['name']
-        data[name] = collection
-
-    me_data['magiceden_project_data'] = data
-
-    sample = {}
-    for k, v in data.items():
-        proc_name = k.replace(' ', '').lower()
-        for name in cm_v2:
-            proc_key = name.replace(' ', '').lower()
-            if proc_key in proc_name:
-                sample[k] = v
-
-
-    listings = defaultdict(list)
-    index = 0
-    for k, v in sample.items():
-        symbol = v['symbol']
-        print(f'Moving to {symbol}')
-
-        result = requests.get(url = f'https://api-mainnet.magiceden.dev/v2/collections/{symbol}/listings?offset={index}&limit=5')
-        result = result.json()
-        listings[symbol] += result
-
-    me_data['test_listings_data'] = listings
-
-    whales = listings['solana_hodl_whales']
-
-    hashmap_cmid = {}
-    errors = set()
-    for k, v in listings.items():
-        for value in v:
-            if len(hashmap_cmid.get(k, [])) == 0:
-                try:
-                    token_address = value['tokenMint']
-                    result = BLOCKCHAIN_API_RESOURCE.get_candy_machine_id_from_nft(
-                        mint_address=token_address,
-                        network=SolanaNetwork.MAINNET_BETA
-                    )
-                    hashmap_cmid[k] = result
-                except Exception as e:
-                    print(f'Error for {k} : {e}')
-                    errors.add(k)
-            else:
-                break
+    #
+    # listings = defaultdict(list)
+    # index = 0
+    # for k, v in sample.items():
+    #     symbol = v['symbol']
+    #     print(f'Moving to {symbol}')
+    #
+    #     result = requests.get(url = f'https://api-mainnet.magiceden.dev/v2/collections/{symbol}/listings?offset={index}&limit=5')
+    #     result = result.json()
+    #     listings[symbol] += result
+    #
+    # me_data['test_listings_data'] = listings
+    #
+    # whales = listings['solana_hodl_whales']
+    #
+    # hashmap_cmid = {}
+    # errors = set()
+    # for k, v in listings.items():
+    #     for value in v:
+    #         if len(hashmap_cmid.get(k, [])) == 0:
+    #             try:
+    #                 token_address = value['tokenMint']
+    #                 result = BLOCKCHAIN_API_RESOURCE.get_candy_machine_id_from_nft(
+    #                     mint_address=token_address,
+    #                     network=SolanaNetwork.MAINNET_BETA
+    #                 )
+    #                 hashmap_cmid[k] = result
+    #             except Exception as e:
+    #                 print(f'Error for {k} : {e}')
+    #                 errors.add(k)
+    #         else:
+    #             break
     # # add test data
-    me_data['sample_cm_id'] = hashmap_cmid
+    # me_data['sample_cm_id'] = hashmap_cmid
     cmid_to_hashlist = {}
     # get hashlist of CMID
-    for key, val in hashmap_cmid.items():
-        cm_id = val['candy_machine_id']
-        is_v2 = val['candy_machine_contract_version'] == 'v2'
-        hashlist = get_hashlist(cm_id, base_dir, is_v2 = is_v2)
-        cmid_to_hashlist[key] = hashlist
+    # for key, val in hashmap_cmid.items():
+    #     cm_id = val['candy_machine_id']
+    #     is_v2 = val['candy_machine_contract_version'] == 'v2'
+    # cmid = 'DGPM2TfpoCYsBoTjsAttbCf6HWuGwqPBpPn3jyyXDwYW'
+    # is_v2 = True
+    # hashlist = get_hashlist(cmid, base_dir, is_v2 = is_v2)
+    with open('./data/baby_hashlist.json', 'r') as file:
+        hashlist = json.load(file)
 
-    me_data['sample_cmid_to_hashlist'] = cmid_to_hashlist
-    transaction_errors = defaultdict(list)
-    transaction_data = {}
-    for k, v in cmid_to_hashlist.items():
-        print(f'Processing {k}')
-        temp_tx = {}
-        for i in range(0, len(v), 250):
-            try:
-                hlist = v[i : i + 250]
-                tx_data = get_nft_analytics(hlist, -1, None)
-                temp_tx.update(tx_data['transaction_history'])
-            except Exception as e:
-                print(f'Error for {k} on ({i}, {i+250}) : {e}')
-                transaction_errors[k] += hlist
-        transaction_data[k] = temp_tx
+    data = []
+    hlist = []
+    for i, nft in enumerate(hashlist):
+        print(i)
+        hlist.append(nft)
+        nft_metadata = BLOCKCHAIN_API_RESOURCE.get_nft_metadata(
+            mint_address= nft,
+            network=SolanaNetwork.MAINNET_BETA
+        )
+        nft_data = {
+            'mint_id' : nft_metadata['mint'],
+            'metadata' : nft_metadata['off_chain_data']
+        }
+        data.append(nft_data)
 
-    me_data['sample_transaction_data'] = transaction_data
-    with open(str(data_directory / 'sample_data.pickle'), 'wb') as file:
-        pickle.dump(me_data, file)
-
-    transaction_data = me_data['sample_transaction_data']
-    all_dfs = {}
-    for name, val in transaction_data.items():
-        project_df = {}
-        for k, v in val.items():
-            if len(v) != 0:
-                project_df[k] = pd.DataFrame(v)
-        project_df = pd.concat(list(project_df.values()), axis = 0, ignore_index = True)
-        all_dfs[name] = project_df
-
-    for k, v in all_dfs.items():
-        v['project_name'] = k
-        all_dfs[k] = v
-    dfs = pd.concat(list(all_dfs.values()), axis = 0, ignore_index = True)
-    dfs['datetime'] = pd.to_datetime(dfs['block_time'], unit = 's')
-    sample = dfs.loc[dfs['project_name'] == 'degods', :]
-    buy_df = sample.loc[sample['operation'] == 'buy']
-    buy_df['price'] = buy_df['price'] / 10**9
-    avg_price = buy_df.resample('D', on = 'datetime').mean()
-    ax = avg_price['price'].plot(y = 'price', figsize = (12, 12), title = 'average price per day')
-    plt.show()
-
-    http_client = Client("https://broken-sparkling-frog.solana-mainnet.quiknode.pro/cd7cc881807e0e218614e5f86ea1f62b9aa1fc8e/")
-    one_transaction_set = http_client.get_confirmed_signature_for_address2('6RiLfUjMZsysLWCM5r2uhnrzFyQmTev1aHcJLBTVy7ss')
-    one_transaction = http_client.get_confirmed_transaction('4kgeHWWTRKtJyfRNETtzaqfgmaDVYLkXmiyCWtTWQAnYXsauPoVEghfGeSmBSai6rJdAkZjWQafJctp7Amwk3qmQ')
-    # one_transaction_tr = http_client.get_confirmed_signature_for_address2('MEisE1HzehtrDpAAT8PnLHjpSSkRYakotTuJRPjTpo8')
-    tx_signature = []
-    me_transactions = {}
-    index = 0
-    min_date = pd.to_datetime('2021-12-01')
-    cur_min_date = pd.to_datetime('2021-12-30')
-    try:
-        last_tx = 'kxsDBjRtvudXUPmXcAoUnG8WsgQv5Z89Q2n6kQo5cu9ksPs14S21JUyiotyLLiBPNjvnncRPCkz1jcSQLKQHCvB'
-        while True:
-            if index % 10 == 0:
-                print(f'Index = {1000 * index}')
-            program_acc = http_client.get_confirmed_signature_for_address2(
-                account = 'MEisE1HzehtrDpAAT8PnLHjpSSkRYakotTuJRPjTpo8',
-                before= last_tx
-            )
-            last_tx = program_acc['result'][-1]['signature']
-            for result in program_acc['result']:
-                tx_signature.append(result)
-                tx_sig = result['signature']
-                me_transactions[tx_sig] = result
-                blocktime = pd.to_datetime(result['blockTime'], unit = 's')
-                cur_min_date = min(cur_min_date, blocktime)
-            if cur_min_date <= min_date:
-                break
-            index += 1
-    except Exception as e:
-        print(f'Exception received: {e}')
+    with open('./data/metadata.json', 'w') as file:
+        json.dump(data, file)
 
 
-
-
+    #
+    # me_data['sample_cmid_to_hashlist'] = cmid_to_hashlist
+    # transaction_errors = defaultdict(list)
+    # transaction_data = {}
+    # for k, v in cmid_to_hashlist.items():
+    #     print(f'Processing {k}')
+    #     temp_tx = {}
+    #     for i in range(0, len(v), 250):
+    #         try:
+    #             hlist = v[i : i + 250]
+    #             tx_data = get_nft_analytics(hlist, -1, None)
+    #             temp_tx.update(tx_data['transaction_history'])
+    #         except Exception as e:
+    #             print(f'Error for {k} on ({i}, {i+250}) : {e}')
+    #             transaction_errors[k] += hlist
+    #     transaction_data[k] = temp_tx
+    #
+    # me_data['sample_transaction_data'] = transaction_data
+    # with open(str(data_directory / 'sample_data.pickle'), 'wb') as file:
+    #     pickle.dump(me_data, file)
+    #
+    # transaction_data = me_data['sample_transaction_data']
+    # all_dfs = {}
+    # for name, val in transaction_data.items():
+    #     project_df = {}
+    #     for k, v in val.items():
+    #         if len(v) != 0:
+    #             project_df[k] = pd.DataFrame(v)
+    #     project_df = pd.concat(list(project_df.values()), axis = 0, ignore_index = True)
+    #     all_dfs[name] = project_df
+    #
+    # for k, v in all_dfs.items():
+    #     v['project_name'] = k
+    #     all_dfs[k] = v
+    # dfs = pd.concat(list(all_dfs.values()), axis = 0, ignore_index = True)
+    # dfs['datetime'] = pd.to_datetime(dfs['block_time'], unit = 's')
+    # sample = dfs.loc[dfs['project_name'] == 'degods', :]
+    # buy_df = sample.loc[sample['operation'] == 'buy']
+    # buy_df['price'] = buy_df['price'] / 10**9
+    # avg_price = buy_df.resample('D', on = 'datetime').mean()
+    # ax = avg_price['price'].plot(y = 'price', figsize = (12, 12), title = 'average price per day')
+    # plt.show()
+    #
+    # http_client = Client("https://broken-sparkling-frog.solana-mainnet.quiknode.pro/cd7cc881807e0e218614e5f86ea1f62b9aa1fc8e/")
+    # one_transaction_set = http_client.get_confirmed_signature_for_address2('6RiLfUjMZsysLWCM5r2uhnrzFyQmTev1aHcJLBTVy7ss')
+    # one_transaction = http_client.get_confirmed_transaction('4kgeHWWTRKtJyfRNETtzaqfgmaDVYLkXmiyCWtTWQAnYXsauPoVEghfGeSmBSai6rJdAkZjWQafJctp7Amwk3qmQ')
+    # # one_transaction_tr = http_client.get_confirmed_signature_for_address2('MEisE1HzehtrDpAAT8PnLHjpSSkRYakotTuJRPjTpo8')
+    # tx_signature = []
+    # me_transactions = {}
+    # index = 0
+    # min_date = pd.to_datetime('2021-12-01')
+    # cur_min_date = pd.to_datetime('2021-12-30')
+    # try:
+    #     last_tx = 'kxsDBjRtvudXUPmXcAoUnG8WsgQv5Z89Q2n6kQo5cu9ksPs14S21JUyiotyLLiBPNjvnncRPCkz1jcSQLKQHCvB'
+    #     while True:
+    #         if index % 10 == 0:
+    #             print(f'Index = {1000 * index}')
+    #         program_acc = http_client.get_confirmed_signature_for_address2(
+    #             account = 'MEisE1HzehtrDpAAT8PnLHjpSSkRYakotTuJRPjTpo8',
+    #             before= last_tx
+    #         )
+    #         last_tx = program_acc['result'][-1]['signature']
+    #         for result in program_acc['result']:
+    #             tx_signature.append(result)
+    #             tx_sig = result['signature']
+    #             me_transactions[tx_sig] = result
+    #             blocktime = pd.to_datetime(result['blockTime'], unit = 's')
+    #             cur_min_date = min(cur_min_date, blocktime)
+    #         if cur_min_date <= min_date:
+    #             break
+    #         index += 1
+    # except Exception as e:
+    #     print(f'Exception received: {e}')
+    #
+    #
+    #
+    #
