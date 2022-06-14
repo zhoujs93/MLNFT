@@ -4,7 +4,7 @@ import {
 } from "@nfteyez/sol-rayz";
 import { Wallet } from "@project-serum/anchor";
 import { clusterApiUrl, Connection, PublicKey, Keypair } from "@solana/web3.js";
-import jsonWallet from "./degods_wallet.json";
+import jsonWallet from "./seller_wallet.json";
 var fs = require('fs');
 
 // console.log(jsonWallet);
@@ -65,7 +65,7 @@ setTimeout(() => {
                                    .replace(/\\t/g, "\\t")
                                    .replace(/\\b/g, "\\b")
                                    .replace(/\\f/g, "\\f");
-  fs.writeFile ("./degods_wallet_holdings.json", myEscapedJSONString, function(err: any) {
+  fs.writeFile ("./seller_wallet_holdings.json", myEscapedJSONString, function(err: any) {
     if (err) throw err;
     console.log('complete');
     }

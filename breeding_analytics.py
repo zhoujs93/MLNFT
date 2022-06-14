@@ -226,11 +226,11 @@ if __name__ == '__main__':
     spl_df = spl_post_df.loc[spl_post_df['recipient'] != test_mint_wallet]
     df_krill_final = df_krill.loc[(df_krill['sender'] != test_mint_wallet)]
     df_krill_final['amount'] = df_krill_final['first_wallet_diff'].abs()
-    df_krill_final.to_csv('./data/breeding/df_krill_transactions.csv', index = False)
+    # df_krill_final.to_csv('./data/breeding/df_krill_transactions.csv', index = False)
 
     df_final = df_krill_final.merge(df, left_on='transaction', right_on='transaction_id',
                                     how='inner')
-    df_final.to_csv('./data/breeding/df_final.csv', index = False)
+    # df_final.to_csv('./data/breeding/df_final.csv', index = False)
 
     current_embryo = holders[mint_wallet]['mints']
     df_combined = df_final.merge(spl_post_df, how = 'left', left_on = ['wallet', 'mint_id'],
@@ -252,58 +252,58 @@ if __name__ == '__main__':
                                    left_on = ['nft1_name', 'nft2_name'],
                                    right_on = ['nft1_name', 'nft2_name'])
 
-    df_refunds.to_csv('./data/breeding/breeding_refunds.csv', index = False)
+    # df_refunds.to_csv('./data/breeding/breeding_refunds.csv', index = False)
     df_combined = df_combined.sort_values(by = 'date', axis = 0, ignore_index = True)
     df_combined_unique = df_combined.drop_duplicates(subset = ['wallet', 'nft1_name', 'nft2_name'], ignore_index = True)
     df_combined_unique = df_combined_unique.sort_values(by = 'date', axis = 0, ascending = False, ignore_index = True)
-    df_combined_unique.to_csv('./data/breeding/final_data_breeding.csv', index = False)
+    # df_combined_unique.to_csv('./data/breeding/final_data_breeding.csv', index = False)
+    #
+    # pvt_key = '4pBXB5AAtqXMHY27ivdMhE5xbENQ6WBB5HUsZB6XDQuANKEZQzJGAKR2uNqPXhkh7NVdB3SqDBmhvsrFMqwE8vJR'
+    # pub_key = '9tG1aaVYaD76NvXBDudUeTYbHhrtyPgLX9tT42T67vwX'
+    # src_wallet = SolanaWallet(
+    #     secret_recovery_phrase=None,
+    #     derivation_path=DerivationPath.CLI_PATH,
+    #     passphrase=str(),
+    #     private_key=None,  # OR You can supply this instead. e.g, [11, 234, ... 99, 24]
+    #     b58_private_key=pvt_key)
+    #
+    # errors_transfer = []
+    # owed_nft_df = df_combined_unique.loc[(df_combined_unique['mint_address'].isna())]
+    # for row in owed_nft_df.iterrows():
+    #     idx, row_data = row
+    #     assigned_id = row_data['assigned_mint_id']
+    #     recipient_address = row_data['wallet']
+    #     try:
+    #         transaction_signature = BLOCKCHAIN_API_RESOURCE.transfer(
+    #             wallet=src_wallet,
+    #             recipient_address=recipient_address,
+    #             token_address=assigned_id,
+    #             network=SolanaNetwork.MAINNET_BETA
+    #         )
+    #     except Exception as e:
+    #         print(e)
+    #         errors_transfer.append(row)
 
-    pvt_key = '4pBXB5AAtqXMHY27ivdMhE5xbENQ6WBB5HUsZB6XDQuANKEZQzJGAKR2uNqPXhkh7NVdB3SqDBmhvsrFMqwE8vJR'
-    pub_key = '9tG1aaVYaD76NvXBDudUeTYbHhrtyPgLX9tT42T67vwX'
-    src_wallet = SolanaWallet(
-        secret_recovery_phrase=None,
-        derivation_path=DerivationPath.CLI_PATH,
-        passphrase=str(),
-        private_key=None,  # OR You can supply this instead. e.g, [11, 234, ... 99, 24]
-        b58_private_key=pvt_key)
 
-    errors_transfer = []
-    owed_nft_df = df_combined_unique.loc[(df_combined_unique['mint_address'].isna())]
-    for row in owed_nft_df.iterrows():
-        idx, row_data = row
-        assigned_id = row_data['assigned_mint_id']
-        recipient_address = row_data['wallet']
-        try:
-            transaction_signature = BLOCKCHAIN_API_RESOURCE.transfer(
-                wallet=src_wallet,
-                recipient_address=recipient_address,
-                token_address=assigned_id,
-                network=SolanaNetwork.MAINNET_BETA
-            )
-        except Exception as e:
-            print(e)
-            errors_transfer.append(row)
-
-
-    errors_transfer_two = []
-    owed_nft_df = df_combined_unique.loc[(df_combined_unique['mint_address'].isna())]
-    for i, row in enumerate(errors_transfer):
-        if i % 10 == 0:
-            print(i)
-        idx, row_data = row
-        assigned_id = row_data['assigned_mint_id']
-        recipient_address = row_data['wallet']
-        try:
-            transaction_signature = BLOCKCHAIN_API_RESOURCE.transfer(
-                wallet=src_wallet,
-                recipient_address=recipient_address,
-                token_address=assigned_id,
-                network=SolanaNetwork.MAINNET_BETA
-            )
-            print(f'completed {i} : {transaction_signature}')
-        except Exception as e:
-            print(e)
-            errors_transfer_two.append(row)
-
-    cant_breed_whales = df_combined_unique[['nft1_name', 'nft2_name']]
-    cant_breed_whales.to_csv('./data/breeding/whales_that_cant_breed.csv', index = False)
+    # errors_transfer_two = []
+    # owed_nft_df = df_combined_unique.loc[(df_combined_unique['mint_address'].isna())]
+    # for i, row in enumerate(errors_transfer):
+    #     if i % 10 == 0:
+    #         print(i)
+    #     idx, row_data = row
+    #     assigned_id = row_data['assigned_mint_id']
+    #     recipient_address = row_data['wallet']
+    #     try:
+    #         transaction_signature = BLOCKCHAIN_API_RESOURCE.transfer(
+    #             wallet=src_wallet,
+    #             recipient_address=recipient_address,
+    #             token_address=assigned_id,
+    #             network=SolanaNetwork.MAINNET_BETA
+    #         )
+    #         print(f'completed {i} : {transaction_signature}')
+    #     except Exception as e:
+    #         print(e)
+    #         errors_transfer_two.append(row)
+    #
+    # cant_breed_whales = df_combined_unique[['nft1_name', 'nft2_name']]
+    # cant_breed_whales.to_csv('./data/breeding/whales_that_cant_breed.csv', index = False)

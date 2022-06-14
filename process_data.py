@@ -65,7 +65,7 @@ def get_howrare_collection(url):
 
 
 if __name__ == '__main__':
-    data_dir = pathlib.Path.cwd() / 'data'
+    data_dir = pathlib.Path.home() / 'CandyMachineV2' / 'MLNFT' / 'data'
     files = {
         'aurory' : 'aurory.pickle', 'cets_on_creck' : 'cets_on_creck.pickle',
         'degods' : 'degods.pickle', 'galactic_geckos' : 'galactic_geckos.pickle',
@@ -104,7 +104,7 @@ if __name__ == '__main__':
     change = 0.85
     # # get daily calculations
     projects = df_filtered['collection_symbol'].unique()
-    ts_dir = pathlib.Path.cwd() / 'data' / 'ts-data'
+    ts_dir = data_dir / 'ts-data'
 
     # df_filtered.to_feather(str(data_dir / 'sales_data.feather'))
     df_list = pd.concat([all_data['listings'],
@@ -127,12 +127,51 @@ if __name__ == '__main__':
     temp = df_filtered.loc[(df_filtered['project'] == 'degods')]
     df_price = temp.groupby(['rank']).resample('W', on='datetime').apply(lambda x: x['total_amount'].mean())
     df_price = df_price.reset_index(drop = False).rename({0 : 'Avg Price'}, axis = 1)
-    
+    df_listings = df_list.copy()
+    df_list = df_filtered
     df_list = df_list.assign(week = lambda x: x['datetime'].dt.week)
-    degods_list = df_list.loc[df_list['project'] == 'degods']
-    week_max = degods_list['week'].max()
-    degods_list_last = degods_list.loc[degods_list['week'] == week_max]
+    # degods_list = df_list.loc[df_list['project'] == 'degods']
+    week_max = df_list['week'].max()
+    degods_list_last = df_list.loc[df_list['week'] == week_max]
     seller_wallet = degods_list_last['seller_address'].unique().tolist()
-    degods_wallet_path = pathlib.Path.cwd() / 'address_data' / 'degods_wallet.json'
+    degods_wallet_path = pathlib.Path.home() / 'CandyMachineV2' / 'MLNFT' / 'sol-rayz' / 'seller_wallet.json'
     with open(str(degods_wallet_path), 'w') as file:
         json.dump(seller_wallet, file)
+    buyer_wallet = degods_list_last['buyer_address'].unique().tolist()
+    buyer_wallet_path = pathlib.Path.home() / 'CandyMachineV2' / 'MLNFT' / 'sol-rayz' / 'buyer_wallet.json'
+    with open(str(buyer_wallet_path), 'w') as file:
+        json.dump(buyer_wallet, file)
+
+    cur_directory = pathlib.Path.home() / 'CandyMachineV2' / 'MLNFT'
+    with open(str(cur_directory / 'sol-rayz' / 'seller_wallet_holdings.json'), 'r') as file:
+        seller_wallet_json = json.load(file)
+
+    all_mints = set(howrare['mint'].tolist())
+    wallets_data = {}
+    for k, v in seller_wallet_json.items():
+        if len(v) != 0:
+            for i in range(len(v)):
+                tmp_data = v[i]['data']
+                name, symbol = tmp_data['name'], tmp_data['symbol']
+                del v[i]['data']
+                v[i]['name'], v[i]['symbol'] = name, symbol
+            value_df = pd.DataFrame(v)
+            value_df['wallet'] = k
+            wallets_data[k] = value_df
+    wallets_df = pd.concat(list(wallets_data.values()), axis = 0)
+    howrare['project_name'] = howrare['link'].apply(lambda x: x.split('/')[-2])
+
+    project_name = howrare['project_name'].unique()
+    wallets_df['project_name'] = 'NaN'
+    for project in project_name:
+        ids = howrare.loc[(howrare['project_name'] == project), 'mint'].tolist()
+        wallets_df.loc[(wallets_df['mint'].isin(ids)), 'project_name'] = project
+
+    seller_last_fp = (degods_list_last.groupby(['week', 'project'])
+                                      .apply(lambda x: x['total_amount'].min())
+                                      .reset_index(drop = False)
+                                      .rename({0 : 'floor_price'}, axis = 1))
+    wallets_df = wallets_df.merge(seller_last_fp, how = 'left',
+                                  left_on = ['project_name'],
+                                  right_on = ['project'])
+    wallets_df['floor_price'] = wallets_df['floor_price'].fillna(0.0)
