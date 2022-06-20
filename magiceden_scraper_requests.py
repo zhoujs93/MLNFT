@@ -80,9 +80,6 @@ if __name__ == '__main__':
     base_dir = pathlib.Path.cwd()
     data_dir = pathlib.Path.cwd() / 'data'
 
-    with open(str(data_dir / 'sample_data.pickle'), 'rb') as file:
-        cm_data = pickle.load(file)
-
     # mappings = ['aurory', 'cets_on_creck', 'ggsg:_galactic_geckos', 'catalina_whale_mixer',
     #             'taiyo_robotics', 'female_hodl_whales', 'degods', 'stoned_ape_crew']
     mappings = ['solana_hodl_whales']
