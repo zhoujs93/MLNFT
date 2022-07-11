@@ -50,7 +50,7 @@ def get_collection_data(data_dir, fname, collection_name):
             dfs[hash_id] = temp
     df_all = pd.concat(list(dfs.values()), axis = 0)
     df_all['datetime'] = pd.to_datetime(df_all['blockTime'], unit = 's')
-    df_all = df_all.assign(total_amount = lambda x: x['total_amount'] / 10**9)
+    df_all = df_all.assign(total_amount = lambda x: x['price'] / 10**9)
     df_all['collections'] = collection_name
     return df_all
 
@@ -76,41 +76,46 @@ if __name__ == '__main__':
     mappings = ['aurory', 'cets_on_creck', 'ggsg:_galactic_geckos', 'catalina_whale_mixer',
                 'taiyo_robotics', 'female_hodl_whales', 'degods', 'stoned_ape_crew']
 
-    howrare = pd.read_pickle(str(data_dir / 'howrare_df.pickle'))
+    howrare = pd.read_pickle(str('data/howrare_df.pickle'))
 
-    with open(str(data_dir / 'dfs_data.pickle'), 'rb') as file:
+    ## change this filename to process project by project
+    filename = 'galacticgeckos'
+    with open(str('data/'+filename+'.pickle'), 'rb') as file:
         all_data = pickle.load(file)
 
     df_merged = all_data['sales']
     df_merged['datetime'] = pd.to_datetime(df_merged['blockTime'], unit = 's')
-    df_merged['total_amount'] = df_merged['total_amount'] / (10 ** 9)
+    df_merged['price'] = df_merged['price'] #/ (10 ** 9)
     df_merged = df_merged.sort_values(by = 'datetime', ignore_index = True)
-    df_merged['last_price'] = df_merged.groupby(['mint'])['total_amount'].apply(lambda x: x.shift(1))
-    df_merged['price_change'] = df_merged.groupby(['mint'])['total_amount'].apply(lambda x: x.pct_change(1) - 1)
+    df_merged['last_price'] = df_merged.groupby(['mint'])['price'].apply(lambda x: x.shift(1))
+    df_merged['price_change'] = df_merged.groupby(['mint'])['price'].apply(lambda x: x.pct_change(1) - 1)
     df_merged['target'] = df_merged.groupby(['mint'])['price_change'].apply(lambda x: x.shift(-1))
 
-    features = ['collection_symbol', 'mint', 'total_amount', 'seller_address', 'buyer_address',
+    features = ['collectionSymbol', 'mint', 'price', 'seller', 'buyer',
                 'datetime', 'rank', 'howrare.is', 'trait_normalized', 'statistical_rarity',
                 'price_change', 'last_price', 'target', 'project']
     df = df_merged[features]
     df = df.assign(year = lambda x: x['datetime'].dt.year, month = lambda x: x['datetime'].dt.month,
-                   week = lambda x: x['datetime'].dt.week)
+                   week = lambda x: x['datetime'].dt.isocalendar().week)
     df_filtered = df.copy()
     # # TODO: explore other options
     # # df_filtered[['last_price', 'price_change']] = df_filtered[['last_price', 'price_change']].fillna(0.0)
-    df_filtered['total_weekly_volume'] = df_filtered.groupby(['week', 'mint'])['last_price'].transform(lambda x: x.sum())
-    df_filtered['total_monthly_volume'] = df_filtered.groupby(['month', 'mint'])['last_price'].transform(lambda x: x.sum())
+    df_filtered['total_weekly_volume'] = df_filtered.groupby(['week'])['last_price'].transform(lambda x: x.sum())
+    df_filtered['total_monthly_volume'] = df_filtered.groupby(['month'])['last_price'].transform(lambda x: x.sum())
     # # filter outliers
     change = 0.85
     # # get daily calculations
-    projects = df_filtered['collection_symbol'].unique()
+    projects = df_filtered['collectionSymbol'].unique()
     ts_dir = data_dir / 'ts-data'
 
-    # df_filtered.to_feather(str(data_dir / 'sales_data.feather'))
+    df_filtered.to_feather(str('data/'+filename+'_sales_data.feather'))
+
     df_list = pd.concat([all_data['listings'],
                          all_data['delists']], axis = 0, ignore_index = True)
     df_list['datetime'] = pd.to_datetime(df_list['blockTime'], unit = 's')
-    # df_list.to_feather(str(data_dir / 'listings_data.feather'))
+    df_list.to_feather(str('data/'+filename+'_listings_data.feather'))
+
+    exit(0) 
 
     daily_delist = (df_list.groupby(['project'])
                          .resample('D', on = 'datetime')
@@ -121,7 +126,7 @@ if __name__ == '__main__':
                          .apply(lambda x: (x['TxType'] == 'initializeEscrow').sum()))
     daily_list = (daily_list.reset_index(drop = False)
                             .rename({0 : 'Listings'}, axis = 1))
-
+                            
     # sales = (df_filtered.groupby(['project', 'rank'])
     #                     .resample('D', on = 'datetime').)
     temp = df_filtered.loc[(df_filtered['project'] == 'degods')]

@@ -50,17 +50,18 @@ def scrape_project(k, v):
 @ray.remote
 def scrape_url(sample, index):
     if index % 10 == 0:
-        print(f'Moving onto {index}')
+        print(f'scrape_url::Moving onto {index}')
     data, request = None, None
     while data is None:
         try:
-            url = f'https://api-mainnet.magiceden.dev/rpc/getGlobalActivitiesByQuery?q=%7B%22$match%22:%7B%22mint%22:%22{sample}%22%7D,%22$sort%22:%7B%22blockTime%22:-1,%22createdAt%22:-1%7D,%22$skip%22:0%7D'
+            url = f'https://api-mainnet.magiceden.dev/v2/tokens/{sample}/activities?offset=0&limit=500'
             request = requests.get(url)
             data = request.json()
         except Exception as e:
             print(f'Error Occurred for {sample} : {e}')
             data = None
-            time.sleep(60)
+            time.sleep(10)
+    time.sleep(1)
     return (sample, data, request)
 
 def convert_hash_to_df(project, hashmap):
@@ -93,6 +94,9 @@ if __name__ == '__main__':
     hashmap, i = {}, 0
     for project in projects:
         print(f'Moving onto {project}')
+        ## uncomment this to fetch project by project
+        # if project != 'aurory':
+        #     continue
         results = []
         mint_ids = howrare.loc[howrare['project_name'] == project, 'mint'].unique()
         for i, sample in enumerate(mint_ids):
@@ -105,18 +109,17 @@ if __name__ == '__main__':
         sales, listings, unlistings, othertx = defaultdict(list), defaultdict(list), defaultdict(list), defaultdict(list)
         for item in value:
             mint_id, data, response = item
-            if len(data.get('results', [])) != 0:
-                for tx in data['results']:
-                    if 'parsedUnlist' in tx:
-                        tx['parsedUnlist']['blockTime'] = tx['blockTime']
-                        unlistings[mint_id].append(tx['parsedUnlist'])
-                    elif 'parsedList' in tx:
-                        tx['parsedList']['blockTime'] = tx['blockTime']
-                        listings[mint_id].append(tx['parsedList'])
-                    elif 'parsedTransaction' in tx:
-                        sales[mint_id].append(tx['parsedTransaction'])
-                    else:
-                        othertx[mint_id].append(tx)
+
+            for activity in data:
+                if activity['type'] == 'buyNow':
+                    sales[mint_id].append(activity)
+                elif activity['type'] == 'list':
+                    listings[mint_id].append(activity)
+                elif activity['type'] == 'delist':
+                    unlistings[mint_id].append(activity)
+                else:
+                    othertx[mint_id].append(activity)
+
         dfs_sales = []
         sales_df = convert_hash_to_df(project, sales)
         listings_df = convert_hash_to_df(project, listings)
@@ -132,15 +135,15 @@ if __name__ == '__main__':
     df_delists = pd.concat(list(all_unlistings.values()), axis = 0)
     df_other = pd.concat(list(all_othertx.values()), axis = 0)
 
-    df_sales = df_sales.merge(howrare, how = 'left', on = 'mint')
-    df_listings = df_listings.merge(howrare, how = 'left', on = 'mint')
-    df_delists = df_delists.merge(howrare, how = 'left', on = 'mint')
-    df_other = df_other.merge(howrare, how = 'left', on = 'mint')
+    df_sales = df_sales.merge(howrare, how = 'left', left_on = 'mint_id', right_on = 'mint')
+    df_listings = df_listings.merge(howrare, how = 'left', left_on = 'mint_id', right_on = 'mint')
+    df_delists = df_delists.merge(howrare, how = 'left', left_on = 'mint_id', right_on = 'mint')
+    df_other = df_other.merge(howrare, how = 'left', left_on = 'mint_id', right_on = 'mint')
     all_dfs = {
         'sales' : df_sales,
         'listings' : df_listings,
         'delists' : df_delists,
         'other' : df_other
     }
-    with open(str(data_dir / 'hodl_whales_data.pickle'), 'wb') as file:
+    with open(str(data_dir / 'aurory.pickle'), 'wb') as file:
         pickle.dump(all_dfs, file)
